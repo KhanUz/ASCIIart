@@ -248,7 +248,7 @@ function ASCII(pixels, characters) {
                     characters.length
                 );
 
-                output += characters[0];
+                output += characters[luminanceChar];
             }
         }
 
