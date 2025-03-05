@@ -52,16 +52,16 @@
     <div class="position-absolute bottom-0 m-2 z-3">
         <button type="button" id="settingsBtn" class="btn"><i class="bi bi-gear-fill fs-5"></i></button>
         <label for="ImageFile" class="btn btn-outline-primary">
-            <i class="bi bi-file-image fs-5"></i>
+            <i class="bi bi-image fs-5"></i>
             <input type="file" name="ImageFile" id="ImageFile" accept="image/*" hidden>
         </label>
         <label for="VideoFile" class="btn btn-outline-primary">
-            <i class="bi bi-file-play-fill fs-5"></i>
+            <i class="bi bi-film fs-5"></i>
             <input type="file" name="VideoFile" id="VideoFile" accept="video/*" hidden>
         </label>
-
+        <button class="btn btn-outline-primary" id="WebCam"><i class="bi bi-webcam-fill fs-5"></i></button>
     </div>
-    <div class="setting-group bg-body-tertiary border rounded-2 p-2 m-3 position-fixed top-0 end-0 w-50 d-none"
+    <div class="setting-group bg-body-tertiary border rounded-2 d-flex row justify-content-between p-2 m-3 position-fixed top-0 end-0 w-50 h-50 d-none"
         id="setting-group">
         <div class="input-group mb-2">
             <button class="btn btn-primary border-primary canvas-toggler" id="toggle-canvas" onclick="toggleCanvas()"
@@ -87,7 +87,7 @@
 
         <div class="input-group input-group-sm mb-2">
             <span class="input-group-text"><i class="bi bi-palette-fill"></i></span>
-            <input type="color" class="form-control form-control-color" id="color-input" value="#ffffff"
+            <input type="color" class="form-control h-100 form-control-color" id="color-input" value="#ffffff"
                 title="Choose text color">
         </div>
 
@@ -99,7 +99,7 @@
                 title="Shadow Y-offset">
             <input type="number" id="blurRadius" class="form-control w-50 form-control-sm" placeholder="Blur" value="10"
                 title="Shadow Blur Radius">
-            <input type="color" id="shadowColor" class="form-control  w-50 form-control-color" value="#000000"
+            <input type="color" id="shadowColor" class="form-control h-100 w-50 form-control-color" value="#000000"
                 title="Shadow Color">
         </div>
 
@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <div class="video-controller-wrapper position-absolute bottom-0 start-50 ">
+    <div class="video-controller-wrapper position-fixed bottom-0 start-50 ">
         <button class="btn video-btn d-none fs-1" id="video-controller"><i class="bi bi-pause-btn "></i></button>
     </div>
     <script src="index.js"></script>

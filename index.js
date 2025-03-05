@@ -11,6 +11,7 @@ const videoUpload = document.getElementById("VideoFile");
 const settingBar = document.getElementById("setting-group");
 const settingToggleBtn = document.getElementById("settingsBtn");
 const playPause = document.getElementById("video-controller");
+const webcam = document.getElementById("WebCam");
 
 const charsInput = document.getElementById("char-input");
 const scaleInput = document.getElementById("scale-input");
@@ -25,7 +26,20 @@ function processCurrent() {
     if (currentMode == "image") processImage();
     else if (currentMode == "video") processVideo();
 }
-
+webcam.addEventListener("click", async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
+        videoEl.srcObject = stream;
+        videoEl.onloadeddata = function () {
+            videoEl.play();
+            processVideo();
+        };
+    } catch (error) {
+        console.log(error);
+    }
+});
 charsInput.addEventListener("input", () => {
     characters = charsInput.value;
     if (currentMode == "image" || videoEl.paused) processImage();
@@ -61,9 +75,11 @@ function setupCanvas() {
 }
 
 imgUpload.addEventListener("change", async (event) => {
+    stopProcessing();
     imageUploadHandler(event.target.files[0]);
 });
 videoUpload.addEventListener("input", async (event) => {
+    stopProcessing();
     videoUploadHandler(event.target.files[0]);
     setVideoController();
 });
@@ -119,6 +135,7 @@ function imageUploadHandler(file) {
     reader.readAsDataURL(file);
 }
 function stopProcessing() {
+    
     if (animationId) {
         cancelAnimationFrame(animationId);
         animationId = null;
