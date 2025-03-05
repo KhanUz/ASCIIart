@@ -5,6 +5,7 @@ const context = canvas.getContext("2d", {
     willReadFrequently: true,
     alpha: false,
 });
+context.imageSmoothingEnabled = true;
 const imgUpload = document.getElementById("ImageFile");
 const videoUpload = document.getElementById("VideoFile");
 // setting input
@@ -19,6 +20,7 @@ const FPS = 40;
 // // setting values
 // let characters = charsInput.value;
 // let SCALE = 15;
+let IMAGE = null;
 let currentMode = null;
 let animationId = null;
 function processCurrent() {
@@ -32,7 +34,7 @@ charsInput.addEventListener("input", () => {
 });
 scaleInput.addEventListener("input", () => {
     scale = scaleInput.value;
-    if (currentMode == "image" || videoEl.paused) processImage();
+    if (currentMode == "image" || videoEl.paused) processImage(IMAGE);
 });
 
 colorInput.addEventListener("input", () => {
@@ -40,23 +42,21 @@ colorInput.addEventListener("input", () => {
 });
 
 let characters = " .;coOP?#";
+
 //  ░▒▓
 let newWidth, newHeight;
 let scale = scaleInput.value;
-function toggleCanvas() {
-    const btn = document.getElementById("toggle-canvas");
-    btn.classList.toggle("btn-primary");
-    btn.classList.toggle("text-primary");
-    showHide(canvas);
-}
+
 function setupCanvas() {
     output.innerHTML = "";
     const fontSize = Math.min(
-        window.innerWidth / newWidth,
-        window.innerHeight / newHeight
+        window.innerWidth / canvas.width,
+        window.innerHeight / canvas.height
     );
-    canvas.style.width = fontSize * newWidth + "px";
-    canvas.style.height = fontSize * newHeight + "px";
+    console.log(canvas.width);
+
+    canvas.style.width = canvas.width * fontSize + "px";
+    canvas.style.height = canvas.height * fontSize + "px";
     output.style.fontSize = fontSize + "px";
 }
 
@@ -109,10 +109,8 @@ function imageUploadHandler(file) {
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            context.drawImage(img, 0, 0);
-            processImage();
+            IMAGE = img;
+            processImage(img);
         };
         img.src = reader.result;
     };
@@ -126,8 +124,8 @@ function stopProcessing() {
 }
 function processVideo() {
     if (videoEl.paused || videoEl.ended) return;
-    canvas.width = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
+    canvas.width = videoEl.videoWidth / scale;
+    canvas.height = videoEl.videoHeight / scale;
     newWidth = Math.ceil(videoEl.videoWidth / scale);
     newHeight = Math.ceil(videoEl.videoHeight / scale);
     setupCanvas();
@@ -147,83 +145,125 @@ function processVideo() {
         animationId = requestAnimationFrame(processVideo);
     }, 1000 / FPS);
 }
-function processImage() {
-    playPause.classList.add("d-none");
-    newWidth = Math.ceil(canvas.width / scale);
-    newHeight = Math.ceil(canvas.height / scale);
+function processImage(img) {
+    canvas.width = img.width / scale;
+    canvas.height = img.height / scale;
     setupCanvas();
 
-    let imageData = context.getImageData(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    ).data;
-
-    output.innerHTML = downscaledASCII(
-        imageData,
-        scale,
-        canvas.width,
-        canvas.height,
-        characters
-    );
-    imageData = null;
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    let pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    output.innerHTML = ASCII(pixels, characters);
 }
+function ASCII(pixels, characters) {
+    // Use const for immutable variables
+    const width = canvas.width;
+    const height = canvas.height;
 
-function rgbaToLuminChar(r, g, b, charLen) {
-    let luminance = (r * 77 + g * 150 + b * 29) >> 8; // value / 2^8 and to integer
-    return (luminance * charLen) >> 8; //  suppose (255 * charLen) / 256
-}
+    // Improve readability by extracting complex calculations
+    const getPixelIndex = (y, x) => {
+        const adjustedY = (y + height) % height;
+        const adjustedX = (x + width) % width;
+        return (width * adjustedY + adjustedX) * 4;
+    };
 
-function downscale(pixels, scaleFactor, origWidth, origHeight) {
-    let newWidth = Math.floor(origWidth / scaleFactor);
-    let newHeight = Math.floor(origHeight / scaleFactor);
-    let output = new Uint8Array(newHeight * newWidth * 4);
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            let srcX = Math.floor(x * scaleFactor);
-            let srcY = Math.floor(y * scaleFactor);
-            let srcIndex = (srcY * origWidth + srcX) * 4;
-            let destIndex = (y * newWidth + x) * 4;
+    // Precompute convolution kernels to improve readability
+    const convolutionX = [
+        [-1, 0, 1],
+        [-2, 0, 2],
+        [-1, 0, 1],
+    ];
 
-            // Copy RGBA values
-            output[destIndex] = pixels[srcIndex]; // Red
-            output[destIndex + 1] = pixels[srcIndex + 1]; // Green
-            output[destIndex + 2] = pixels[srcIndex + 2]; // Blue
-            output[destIndex + 3] = pixels[srcIndex + 3]; // Alpha
+    const convolutionY = [
+        [-1, -2, -1],
+        [0, 0, 0],
+        [1, 2, 1],
+    ];
+
+    // Use template literal for multi-line string building
+    let output = "";
+
+    // Improve nested loop performance by caching length
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Extract pixel neighborhood indices
+            const indices = [
+                getPixelIndex(y - 1, x - 1),
+                getPixelIndex(y - 1, x),
+                getPixelIndex(y - 1, x + 1),
+                getPixelIndex(y, x - 1),
+                getPixelIndex(y, x),
+                getPixelIndex(y, x + 1),
+                getPixelIndex(y + 1, x - 1),
+                getPixelIndex(y + 1, x),
+                getPixelIndex(y + 1, x + 1),
+            ];
+
+            // Compute Sobel operator convolution
+            const computeConvolution = (kernel) => {
+                return indices.reduce(
+                    (sum, index, i) =>
+                        sum + pixels[index] * kernel[Math.floor(i / 3)][i % 3],
+                    0
+                );
+            };
+
+            const changeX = computeConvolution(convolutionX);
+            const changeY = computeConvolution(convolutionY);
+
+            // Compute magnitude using more readable approach
+            const magnitude = map(
+                Math.sqrt(changeX * changeX + changeY * changeY),
+                0,
+                1414,
+                0,
+                255
+            );
+
+            // Simplify angle and character selection logic
+            if (magnitude > 100) {
+                // Use more precise angle mapping
+                const angle = Math.atan2(changeY, changeX) * (180 / Math.PI);
+
+                // Use a more comprehensive angle-to-character mapping
+                const getDirectionChar = (angle) => {
+                    if (angle >= -22.5 && angle < 22.5) return "-"; // Horizontal
+                    if (angle >= 22.5 && angle < 67.5) return "/"; // Top-right diagonal
+                    if (angle >= 67.5 && angle < 112.5) return "|"; // Vertical
+                    if (angle >= 112.5 && angle < 157.5) return "\\"; // Bottom-right diagonal
+                    if (angle >= -157.5 && angle < -112.5) return "\\"; // Bottom-left diagonal
+                    if (angle >= -112.5 && angle < -67.5) return "/"; // Top-left diagonal
+                    if (angle >= -67.5 && angle < -22.5) return "|"; // Vertical (left side)
+
+                    return "-"; // Fallback
+                };
+
+                output += getDirectionChar(angle);
+            } else {
+                // Simplified luminance character selection
+                const midPixelIndex = getPixelIndex(y, x);
+                const luminanceChar = rgbaToLuminChar(
+                    pixels[midPixelIndex],
+                    pixels[midPixelIndex + 1],
+                    pixels[midPixelIndex + 2],
+                    characters.length
+                );
+
+                output += characters[0];
+            }
         }
+
+        // Use more standard line break
+        output += "\n";
     }
 
     return output;
 }
-function downscaledASCII(
-    pixels,
-    scaleFactor,
-    origWidth,
-    origHeight,
-    characters
-) {
-    let newWidth = Math.floor(origWidth / scaleFactor);
-    let newHeight = Math.floor(origHeight / scaleFactor);
-    let str = "";
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            let srcX = Math.floor(x * scaleFactor);
-            let srcY = Math.floor(y * scaleFactor);
-            let index = (srcY * origWidth + srcX) * 4;
-            let charIndex = rgbaToLuminChar(
-                pixels[index],
-                pixels[index + 1],
-                pixels[index + 2],
-                characters.length
-            );
-
-            str += characters[charIndex];
-        }
-        str += "<br>";
-    }
-
-    return str;
+function map(value, inX, inY, outX, outY) {
+    return ((value - inX) * (outY - outX)) / (inY - inX) + outX;
+}
+function rgbaToLuminChar(r, g, b, charLen) {
+    let luminance = (r * 77 + g * 150 + b * 29) >> 8; // value / 2^8 and to integer
+    return (luminance * charLen) >> 8; //  suppose (255 * charLen) / 256
 }
 
 function asciiArt(pixels, newWidth, newHeight, characters) {
@@ -243,4 +283,11 @@ function asciiArt(pixels, newWidth, newHeight, characters) {
         output += "<br>";
     }
     return output;
+}
+
+function toggleCanvas() {
+    const btn = document.getElementById("toggle-canvas");
+    btn.classList.toggle("btn-primary");
+    btn.classList.toggle("text-primary");
+    showHide(canvas);
 }
