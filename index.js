@@ -175,27 +175,6 @@ function rgbaToLuminChar(r, g, b, charLen) {
     return (luminance * charLen) >> 8; //  suppose (255 * charLen) / 256
 }
 
-function downscale(pixels, scaleFactor, origWidth, origHeight) {
-    let newWidth = Math.floor(origWidth / scaleFactor);
-    let newHeight = Math.floor(origHeight / scaleFactor);
-    let output = new Uint8Array(newHeight * newWidth * 4);
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            let srcX = Math.floor(x * scaleFactor);
-            let srcY = Math.floor(y * scaleFactor);
-            let srcIndex = (srcY * origWidth + srcX) * 4;
-            let destIndex = (y * newWidth + x) * 4;
-
-            // Copy RGBA values
-            output[destIndex] = pixels[srcIndex]; // Red
-            output[destIndex + 1] = pixels[srcIndex + 1]; // Green
-            output[destIndex + 2] = pixels[srcIndex + 2]; // Blue
-            output[destIndex + 3] = pixels[srcIndex + 3]; // Alpha
-        }
-    }
-
-    return output;
-}
 function downscaledASCII(
     pixels,
     scaleFactor,
@@ -224,23 +203,4 @@ function downscaledASCII(
     }
 
     return str;
-}
-
-function asciiArt(pixels, newWidth, newHeight, characters) {
-    let output = "";
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            let index = (y * newWidth + x) * 4;
-            let charIndex = rgbaToLuminChar(
-                pixels[index],
-                pixels[index + 1],
-                pixels[index + 2],
-                characters.length
-            );
-
-            output += characters[charIndex];
-        }
-        output += "<br>";
-    }
-    return output;
 }
